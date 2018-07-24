@@ -37,6 +37,7 @@ def load_environment():
     config['note']['encounter_col_id'] = os.getenv('encounter_col_id', config['note'].get('encounter_col_id'))
     config['note']['order_type_col_id'] = os.getenv('order_type_col_id', config['note'].get('order_type_col_id'))
     config['note']['gold_std_col_id'] = os.getenv('gold_std_col_id', config['note'].get('gold_std_col_id'))
+    config['note']['other_meta'] = os.getenv('other_meta', config['note'].get('other_meta'))
 
     config['system']['release'] = os.getenv('version', config['system'].get('version')) + '.' + \
                                   os.getenv('build', config['system'].get('build')) + '.' + \
