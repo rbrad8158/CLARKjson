@@ -1,48 +1,12 @@
 # Standard Packages
 import os
 import csv
-from configparser import ConfigParser
 import logging
-import cmd
 import json
 import sys
 import time
 import mmap
 import re
-import timeit
-
-def load_environment():
-    logging.debug('Parsing config.ini and environmental variables')
-    config = ConfigParser()
-    config.read('config.ini')
-
-    config['main']['file_path'] = os.getenv('file_path', config['main'].get('file_path'))
-    config['main']['input_csv_note_file'] = os.getenv('input_csv_note_file', config['main'].get('input_csv_note_file'))
-    config['main']['input_delimiter'] = os.getenv('input_delimiter', config['main'].get('input_delimiter'))
-    config['main']['condense_output'] = os.getenv('condense_output_YN', config['main'].get('condense_output_YN'))
-    config['main']['note_text_combined'] = os.getenv('note_text_combined_YN', config['main'].get('note_text_combined_YN'))
-    config['main']['headers_YN'] = os.getenv('file_includes_headers_YN', config['main'].get('file_includes_headers_YN'))
-
-    config['note']['pat_id_col_id'] = os.getenv('pat_id_col_id', config['note'].get('pat_id_col_id'))
-    config['note']['note_id_col_id'] = os.getenv('note_id_col_id', config['note'].get('note_id_col_id'))
-    config['note']['note_text_col_id'] = os.getenv('note_text_col_id', config['note'].get('note_text_col_id'))
-    config['note']['note_type_col_id'] = os.getenv('note_type_col_id', config['note'].get('note_type_col_id'))
-    config['note']['note_date_col_id'] = os.getenv('note_date_col_id', config['note'].get('note_date_col_id'))
-    config['note']['label_col_id'] = os.getenv('label_col_id', config['note'].get('label_col_id'))
-
-    config['note']['note_seq_col_id'] = os.getenv('note_seq_col_id', config['note'].get('note_seq_col_id'))
-    config['note']['note_csn_col_id'] = os.getenv('note_csn_col_id', config['note'].get('note_csn_col_id'))
-    config['note']['note_source_col_id'] = os.getenv('note_source_col_id',
-                                                     config['note'].get('note_source_col_id'))
-    config['note']['encounter_col_id'] = os.getenv('encounter_col_id', config['note'].get('encounter_col_id'))
-    config['note']['order_type_col_id'] = os.getenv('order_type_col_id', config['note'].get('order_type_col_id'))
-    config['note']['gold_std_col_id'] = os.getenv('gold_std_col_id', config['note'].get('gold_std_col_id'))
-    config['note']['other_meta'] = os.getenv('other_meta', config['note'].get('other_meta'))
-
-    config['system']['release'] = os.getenv('version', config['system'].get('version')) + '.' + \
-                                  os.getenv('build', config['system'].get('build')) + '.' + \
-                                  os.getenv('revision', config['system'].get('revision'))
-    return config
 
 
 ####################
@@ -52,14 +16,14 @@ def load_environment():
 # @input:  None
 # @output: Dictionary{ Configuration Key: Print format }
 # ##################
-def _clark_required_keys ():
+def _clark_required_keys() -> dict:
     _clark_required = {'pat_id_col_id': 'MRN',
                       'note_text_col_id': 'note',
                       'note_id_col_id': 'noteID',
                       'note_type_col_id': 'noteType',
                       'note_date_col_id': 'noteDate',
                       'label_col_id': 'label'
-                      }
+                       }
 
     return _clark_required
 
@@ -86,7 +50,7 @@ def _read_note_file(config):
     pat_counter = 0
     note_counter = 0
 
-    def get_num_lines(file_path):
+    def get_num_lines(file_path) -> int:
         logging.debug('Getting Number of Lines in File...')
         fp = open(file_path, "r+")
         buf = mmap.mmap(fp.fileno(), 0)
@@ -223,10 +187,10 @@ def _read_note_file(config):
         # else:
         #     return [False, "No Notes Were Able to Be Extracted"]
     except FileNotFoundError:
-        return [False, "Input File Could Not Be Found (#CMDx002.3)"]
+        return False, "Input File Could Not Be Found (#CMDx002.3)", None
 
     finally:
-        return [True, pat_counter, note_counter]
+        return True, pat_counter, note_counter
 
 
 def _write_note(in_note, output_file, is_last, condense=True):
@@ -433,63 +397,3 @@ def get_condense_check(config):
         return True
     else:
         return False
-
-class CLARKjsonCLI(cmd.Cmd):
-    def __init__(self):
-        cmd.Cmd.__init__(self)
-        self.config = load_environment()
-        self.intro = 'Welcome to the UNC Clinical Note JSON\'ifier. \n' \
-            'Release ' + self.config['system']['release'] + '\n ' \
-            'Development of this tool is supported by NCATS NIH CTSA Grant UL1TR002489 \n\n ' \
-            'Type help or ? to list commands.\n '
-
-    @staticmethod
-    def do_exit(self):
-        """Close the window, and exit:  EXIT"""
-        # if _file_loaded and not _results_saved:
-        #     print('It looks like you loaded a file but haven\'t done anything yet.')
-        #     _exit_check = self.prompt('Are you sure you want to exit? [Y/N]')
-        #     if _exit_check.upper() == 'Y':
-        #         print('Until next time...')
-        #         return True
-        #     else:
-        #         return False
-        # else:
-        print('Until next time...')
-        return True
-
-    def do_readnotes(self, arg):
-        """Read in the local note file to convert to JSON"""
-        tic = timeit.default_timer()
-        _result = _read_note_file(self.config);
-        if _result[0]:
-            print('\nNumber of Patients: ' + str(_result[1]))
-            print('\nNumber of Notes: ' + str(_result[2]))
-        toc = timeit.default_timer()
-        elapsed = str(round(toc-tic, 2))
-        print('\nElapsed Time: ' + str(elapsed) + ' seconds')
-
-if __name__ == "__main__":
-    if sys.version_info[0] < 3:
-        raise RuntimeError("This program requires the Python 3 interpreter")
-
-    os.makedirs(os.path.dirname(os.path.join('logs', 'main.log')), exist_ok=True)
-    # noinspection SpellCheckingInspection
-    logging.basicConfig(filename=os.path.join('logs', 'main.log'),
-                        format='%(asctime)s %(funcName)-12s %(levelname)-8s %(message)s',
-                        filemode='w', level=logging.DEBUG)
-    console = logging.StreamHandler()
-    # console.setLevel(logging.DEBUG)
-    console.setLevel(logging.ERROR)
-
-    # set a format which is simpler for console use
-    # noinspection SpellCheckingInspection
-    formatter = logging.Formatter('%(funcName)-20s: %(levelname)-8s %(message)s')
-    # tell the handler to use this format
-    console.setFormatter(formatter)
-    # add the handler to the root logger
-    logging.getLogger('').addHandler(console)
-
-    logging.debug('Python version ' + sys.version)
-
-    CLARKjsonCLI().cmdloop()
